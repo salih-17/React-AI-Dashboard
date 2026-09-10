@@ -4,18 +4,16 @@ from database import engine, Base, SessionLocal
 from datetime import date
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, text
 from typing import Annotated, List
 from fastapi.middleware.cors import CORSMiddleware
 import openpyxl
 import io
-import sqlite3
 from dotenv import load_dotenv
 import os
 
 from langchain.tools import tool
 from langchain_openai import ChatOpenAI
-from langchain_core.prompts import ChatPromptTemplate
 from langgraph.prebuilt import create_react_agent
 
 load_dotenv()
@@ -25,7 +23,7 @@ Base.metadata.create_all(bind=engine)
 
 origins = [
     "http://localhost:5173",
-    "https://expenses.analyzeforce.com",  # ← أضف رابط الفرونت
+    "https://expenses.analyzeforce.com",
 ]
 
 app.add_middleware(
@@ -36,7 +34,6 @@ app.add_middleware(
     allow_headers=['*']
 )
 
-# ─── Schemas ─────────────────────────────────────
 class ExpenseBase(BaseModel):
     amount: float
     category: str
@@ -48,7 +45,6 @@ class ExpenseModel(ExpenseBase):
     class Config:
         from_attributes = True
 
-# ─── DB ──────────────────────────────────────────
 def get_db():
     db = SessionLocal()
     try:
@@ -58,55 +54,49 @@ def get_db():
 
 db_dependency = Annotated[Session, Depends(get_db)]
 
-# ─── LLM ─────────────────────────────────────────
 llm = ChatOpenAI(
     model="gpt-4o-mini",
     temperature=0,
     api_key=os.getenv("OPENAI_API_KEY")
 )
 
-# ─── Tools ───────────────────────────────────────
 @tool
 def sql_db_list_tables() -> str:
     """Input is an empty string, output is a comma-separated list of tables in the database."""
-    con = sqlite3.connect("./expenses.db")
+    db = SessionLocal()
     try:
-        cursor = con.cursor()
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
-        tables = [row[0] for row in cursor.fetchall() if not row[0].startswith("sqlite_")]
+        result = db.execute(text("SELECT tablename FROM pg_tables WHERE schemaname='public';"))
+        tables = [row[0] for row in result]
         return ", ".join(tables)
     finally:
-        con.close()
+        db.close()
 
 @tool
 def sql_db_schema(table_names: str) -> str:
-    """Input is a comma-separated list of tables, output is the schema and sample rows."""
-    con = sqlite3.connect("./expenses.db")
+    """Input is a comma-separated list of tables, output is the schema."""
+    db = SessionLocal()
     try:
-        cursor = con.cursor()
         results = []
         for table in table_names.split(","):
             table = table.strip()
-            cursor.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name=?;", (table,))
-            schema_row = cursor.fetchone()
-            if schema_row:
-                results.append(schema_row[0])
+            result = db.execute(text(f"SELECT column_name, data_type FROM information_schema.columns WHERE table_name='{table}';"))
+            cols = [f"{row[0]}: {row[1]}" for row in result]
+            results.append(f"Table {table}:\n" + "\n".join(cols))
         return "\n\n".join(results)
     finally:
-        con.close()
+        db.close()
 
 @tool
 def sql_db_query(query: str) -> str:
     """Input is a correct SQL query, output is the result from the database."""
-    con = sqlite3.connect("./expenses.db")
+    db = SessionLocal()
     try:
-        cursor = con.cursor()
-        cursor.execute(query)
-        return str(cursor.fetchall())
+        result = db.execute(text(query))
+        return str(result.fetchall())
     except Exception as e:
         return f"Error: {e}"
     finally:
-        con.close()
+        db.close()
 
 @tool
 def sql_db_query_checker(query: str) -> str:
@@ -124,7 +114,6 @@ SQL Query:"""
 
 tools = [sql_db_list_tables, sql_db_schema, sql_db_query_checker, sql_db_query]
 
-# ─── Agent ───────────────────────────────────────
 system_prompt = """
 أنت مساعد ذكي متخصص في تحليل المصاريف الشخصية.
 قاعدة البيانات فيها جدول expenses يحتوي على:
@@ -142,7 +131,6 @@ system_prompt = """
 
 agent = create_react_agent(llm, tools, prompt=system_prompt)
 
-# ─── Endpoints ───────────────────────────────────
 @app.get("/")
 async def root():
     return {"message": "App is running"}
@@ -238,7 +226,6 @@ async def get_analytics(
 async def chat(question: str):
     response = agent.invoke({"messages": [{"role": "user", "content": question}]})
     
-    # استخرج الخطوات
     steps = []
     for msg in response["messages"]:
         if hasattr(msg, "tool_calls") and msg.tool_calls:
