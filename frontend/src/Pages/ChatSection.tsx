@@ -50,7 +50,7 @@ export default function ChatSection() {
       </CardHeader>
 
       <CardContent className="flex flex-col flex-1 gap-4 pt-4 overflow-hidden">
-        <ScrollArea className="h-[500px]">
+        <ScrollArea className="h-125">
           <div className="flex flex-col gap-4 px-1">
             {messages.length === 0 && <p className="text-gray-400 text-center text-sm mt-10">لا توجد رسائل بعد 💬</p>}
 
@@ -70,23 +70,19 @@ export default function ChatSection() {
                 {msg.steps && msg.steps.length > 0 && (
                   <div className="flex justify-end">
                     <div className="w-full max-w-sm">
-                      <Accordion type="multiple" className="flex flex-col gap-1">
+                      <div className="flex flex-col gap-1">
                         {msg.steps.map((step, j) => (
-                          <AccordionItem key={j} value={`step-${i}-${j}`} className="border rounded-lg px-3 bg-gray-50">
-                            <AccordionTrigger className="text-xs text-gray-500 hover:no-underline py-2">
-                              <div className="flex items-center gap-2">
-                                <CheckCircle2 size={12} className="text-green-500 shrink-0" />
-                                <span>{TOOL_LABELS[step.tool] || step.tool}</span>
-                              </div>
-                            </AccordionTrigger>
-                            <AccordionContent className="pb-2">
-                              <pre className="text-xs text-gray-600 bg-white border rounded p-2 overflow-x-auto whitespace-pre-wrap">
-                                {typeof step.input === "object" ? JSON.stringify(step.input, null, 2) : step.input}
-                              </pre>
-                            </AccordionContent>
-                          </AccordionItem>
+                          <details key={j} className="border rounded-lg px-3 bg-gray-50">
+                            <summary className="text-xs text-gray-500 py-2 cursor-pointer flex items-center gap-2">
+                              <CheckCircle2 size={12} className="text-green-500 shrink-0" />
+                              {TOOL_LABELS[step.tool] || step.tool}
+                            </summary>
+                            <pre className="text-xs text-gray-600 bg-white border rounded p-2 overflow-x-auto whitespace-pre-wrap pb-2">
+                              {typeof step.input === "object" ? JSON.stringify(step.input, null, 2) : step.input}
+                            </pre>
+                          </details>
                         ))}
-                      </Accordion>
+                      </div>
                     </div>
                   </div>
                 )}

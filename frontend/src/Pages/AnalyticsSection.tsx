@@ -111,12 +111,12 @@ export default function AnalyticsSection({ filters, setFilters, refreshKey }: Pr
       <CardContent className="pt-4 flex flex-col gap-6">
         <div>
           <p className="text-sm font-medium mb-2">حسب الفئة</p>
-          <ChartContainer config={chartConfig} className="mx-auto aspect-square max-h-[250px]">
+          <ChartContainer config={chartConfig} className="mx-auto aspect-square max-h-62.5">
             <PieChart>
               <Pie
                 data={data.by_category.map((item: any) => ({
                   ...item,
-                  fill: chartConfig[item.category as keyof typeof chartConfig]?.color || "#000",
+                  fill: (chartConfig[item.category as keyof typeof chartConfig] as any)?.color || "#000",
                 }))}
                 dataKey="total"
                 nameKey="category"
