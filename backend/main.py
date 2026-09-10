@@ -23,7 +23,11 @@ load_dotenv()
 app = FastAPI()
 Base.metadata.create_all(bind=engine)
 
-origins = ["http://localhost:5173"]
+origins = [
+    "http://localhost:5173",
+    "https://expenses.analyzeforce.com",  # ← أضف رابط الفرونت
+]
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
