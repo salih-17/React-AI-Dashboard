@@ -57,7 +57,7 @@ export default function ChatSection() {
       </CardHeader>
 
       <CardContent className="flex flex-col flex-1 gap-4 pt-4 overflow-hidden">
-        <ScrollArea className="h-150">
+        <ScrollArea className="flex-1 overflow-hidden">
           <div className="flex flex-col gap-4 px-1">
             {messages.length === 0 && <p className="text-gray-400 text-center text-sm mt-10">لا توجد رسائل بعد 💬</p>}
 
